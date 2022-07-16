@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: apps
+  name: apps-worker
+  namespace: ikomida-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apps
+  template:
+    metadata:
+      labels:
+        app: apps
+    spec:
+      containers:
+        - image: hub.docker.internal:5000/ikomida/apps-worker-image:latest
+          name: apps-worker
+          env:
+            - name: ENV
+              value: "DEV"
+            - name: GOOGLEADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: googleAdmin
+                  optional: false
+            - name: MQUSER
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: MQUSER
+            - name: MQPASS
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: MQPASS
+            - name: MQVHOST
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: MQVHOST
+            - name: DBUSER
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: DBUSER
+            - name: DBPASS
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: DBPASS
+            - name: DBNAME
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: DBNAME
+            - name: DBHOST
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: DBHOST
+            - name: DBPORT
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: DBPORT
+            - name: PROJID
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: PROJID
