@@ -1,0 +1,5 @@
+apps:
+    - name: ikomida-apps-worker
+      script: ./src/worker.mjs
+      exec_mode: cluster
+      instances: max
