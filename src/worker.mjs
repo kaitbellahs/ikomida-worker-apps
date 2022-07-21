@@ -18,27 +18,31 @@ name = name
     .replace(/^(@\S+\/)?(svelte-)?(\S+)/, '$3')
     .replace(/^\w/, m => m.toUpperCase())
     .replace(/-\w/g, m => m[1].toUpperCase());
-const logger = Logger.getInstance(name, process.env?.ENV !== 'PROD');
 
 class AppsWorker {
 
     googleAdmin;
     amqp;
+    logger
+
+    constructor(){
+        this.logger = Logger.getInstance(name, process.env?.ENV !== 'PROD')
+    }
 
     //TODO: -- report errors
     async run() {
         try {
             this.googleAdmin = new GoogleAdmin();
-            this.amqp = new RabbitMQ(logger);
+            this.amqp = new RabbitMQ(this.logger);
             await this.amqp.listenToMessages(RabbitMQ.APPS_SEVERITY, this.processMessages.bind(this));
         } catch (error) {
-            console.error(error);
+            this.logger.error(error);
         }
     }
 
     async processMessages(message, channel) {
         try {
-            console.log(" [x] %s: message received: '%s'", message.fields.routingKey, message.content.toString('utf8'));
+            this.logger.log(" [x] %s: message received: '%s'", message.fields.routingKey, message.content.toString('utf8'));
             const messageObject = JSON.parse(message.content.toString('utf8'));
             if (messageObject.method === 'createApp') {
                 const model = createModel(messageObject.object.message, messageObject.object.contractId, messageObject.object.platform);
@@ -50,7 +54,7 @@ class AppsWorker {
                 }
             }
         } catch (error) {
-            console.error(error);
+            this.logger.error(error);
         } finally {
             channel.ack(message);
         }
@@ -79,7 +83,6 @@ class AppsWorker {
 
     async createAndroidApp(object, model) {
         const response = await this.googleAdmin.createNewAndroidApp(object.displayName, object.packageName);
-        console.log(response);
         if (!response) {
             return false;
         }
@@ -91,7 +94,6 @@ class AppsWorker {
 
     async createIosApp(object, model) {
         const response = await this.googleAdmin.createNewIosApp(object.displayName, object.packageName);
-        console.log(response);
         if (!response) {
             return false;
         }
