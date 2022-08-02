@@ -32,7 +32,7 @@ class AppsWorker {
 
     async run() {
         try {
-            this.googleAdmin = new GoogleAdmin()
+            this.googleAdmin = new GoogleAdmin(this.logger)
             this.amqp = new RabbitMQ(this.logger)
             await this.amqp.listenToMessages(RabbitMQ.APPS_SEVERITY, this.processMessages.bind(this))
         } catch (error) {
@@ -45,9 +45,9 @@ class AppsWorker {
             this.logger.log(` [x] ${message.fields.routingKey}: message received: '${message.content.toString('utf8')}'`)
             const messageObject = JSON.parse(message.content.toString('utf8'))
             if (messageObject.method === 'createApp') {
-                const model = createModel(messageObject.object.message, messageObject.object.contractId, messageObject.object.platform)
+                const model = await createModel(messageObject.object.message, messageObject.object.contractId, messageObject.object.platform)
                 for (let i = 1; i < 4; i++) {
-                    if ((messageObject.object.platform === 'android' && this.createAndroidApp(messageObject.object.message, model)) || (messageObject.object.platform === 'ios' && this.createIosApp(messageObject.object.message, model))) {
+                    if ((messageObject.object.platform === 'android' && await this.createAndroidApp(messageObject.object.message, model)) || (messageObject.object.platform === 'ios' && await this.createIosApp(messageObject.object.message, model))) {
                         break;
                     }
                     await this.sleep(i * 1000)
