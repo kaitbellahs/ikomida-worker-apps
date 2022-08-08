@@ -5,7 +5,7 @@ import {
     SqlDB,
     GoogleAdmin,
     Logger,
-    MicroService
+    System
 } from 'ikomida-shared';
 import {
     createRequire
@@ -26,7 +26,7 @@ class AppsWorker {
     amqp;
     logger
 
-    constructor(){
+    constructor() {
         this.logger = Logger.getInstance(name, process.env?.ENV !== 'PROD')
     }
 
@@ -34,7 +34,7 @@ class AppsWorker {
         try {
             this.googleAdmin = new GoogleAdmin(this.logger)
             this.amqp = new RabbitMQ(this.logger)
-            await this.amqp.listenToMessages(RabbitMQ.APPS_SEVERITY, this.processMessages.bind(this))
+            await this.amqp.listenToMessages(RabbitMQ.APPS_QUEUE, this.processMessages.bind(this))
         } catch (error) {
             this.logger.error(error)
         }
@@ -50,7 +50,7 @@ class AppsWorker {
                     if ((messageObject.object.platform === 'android' && await this.createAndroidApp(messageObject.object.message, model)) || (messageObject.object.platform === 'ios' && await this.createIosApp(messageObject.object.message, model))) {
                         break;
                     }
-                    await this.sleep(i * 1000)
+                    await System.sleep(i * 1000)
                 }
             }
         } catch (error) {
@@ -101,10 +101,6 @@ class AppsWorker {
         model.fireBaseId = response;
         model.save()
         return true;
-    }
-
-    async sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms))
     }
 }
 
