@@ -6,10 +6,10 @@ import {
     GoogleAdmin,
     Logger,
     System
-} from 'ikomida-shared';
+} from 'ikomida-shared'
 import {
     createRequire
-} from "module";
+} from "module"
 const require = createRequire(
     import.meta.url)
 let {
@@ -22,8 +22,8 @@ name = name
 
 class AppsWorker {
 
-    googleAdmin;
-    amqp;
+    googleAdmin
+    amqp
     logger
 
     constructor() {
@@ -40,67 +40,82 @@ class AppsWorker {
         }
     }
 
-    async processMessages(message, channel) {
+    async processMessages(payload, channel) {
         try {
-            this.logger.log(` [x] ${message.fields.routingKey}: message received: '${message.content.toString('utf8')}'`)
-            const messageObject = JSON.parse(message.content.toString('utf8'))
+            this.logger.log(` [x] ${payload?.fields?.routingKey}: message received: '${payload?.content?.toString('utf8')}'`)
+            const messageObject = JSON.parse(payload?.content?.toString('utf8'))
             if (messageObject.method === 'createApp') {
-                const model = await createModel(messageObject.object.message, messageObject.object.contractId, messageObject.object.platform)
-                for (let i = 1; i < 4; i++) {
-                    if ((messageObject.object.platform === 'android' && await this.createAndroidApp(messageObject.object.message, model)) || (messageObject.object.platform === 'ios' && await this.createIosApp(messageObject.object.message, model))) {
-                        break;
-                    }
-                    await System.sleep(i * 1000)
+                const message = messageObject?.object?.message
+                const platform = messageObject?.object?.platform
+                const model = await this.createModel(message, messageObject.object?.contractId, platform)
+                if (!model) {
+                    return false
                 }
+                let n = 0
+                let total = 0
+                let i = 0
+                do {
+                    let response
+                    if (platform === 'android') {
+                        response = await this.googleAdmin?.createNewAndroidApp(message?.displayName, message?.packageName)
+                    }
+                    if (platform === 'ios') {
+                        response = await this.googleAdmin?.createNewIosApp(message?.displayName, message?.packageName)
+                    }
+                    i++
+                    switch (response?.code) {
+                        case 0:
+                            model.fireBase = true
+                            model.fireBaseId = response?.id
+                            await model.save()
+                            this.logger.log(` [x] App bundleId: ${model?.bundleId} platfrm: ${platform} foi criado com sucesso`)
+                            channel.ack(payload)
+                            return true
+                        case 1:
+                            this.logger.warn(` [x] App bundleId: ${model?.bundleId} platfrm: ${platform} encontra-se criado`)
+                            channel.ack(payload)
+                            return true
+                        case -1:
+                            if (i < 4) {
+                                n += i
+                                total += n * 4
+                                await System.sleep(n * 4000)
+                            }
+                            break
+                        default:
+                            return false
+                    }
+                } while (i < 4)
+                this.logger.error(`nao foi possivel o App bundleId: ${model?.bundleId} platfrm: ${platform} após ${i} tentativas em ${total}s.`)
             }
         } catch (error) {
             this.logger.error(error)
-        } finally {
-            channel.ack(message)
         }
+        return false
     }
 
     async createModel(object, contractId, platform) {
-        const contractModel = await SqlDB.ContractModel.findOne({
-            where: {
-                id: contractId
+        try {
+            const contractModel = await SqlDB.ContractModel.findOne({
+                where: {
+                    id: contractId
+                }
+            })
+
+            if (!contractModel) {
+                return false
             }
-        })
 
-        if (!contractModel) {
-            return false;
+            const appModel = await contractModel.createApp({
+                bundleId: object?.packageName,
+                platform: platform,
+                displayName: object?.displayName
+            })
+            return appModel
+        } catch (error) {
+            this.logger.error(error)
         }
-
-        const appModel = await SqlDB.AppModel.create({
-            bundleId: object?.bundleId,
-            platform: platform,
-            displayName: object?.displayName
-        })
-
-        await appModel.setContract(contractModel)
-        return appModel;
-    }
-
-    async createAndroidApp(object, model) {
-        const response = await this.googleAdmin.createNewAndroidApp(object.displayName, object.packageName)
-        if (!response) {
-            return false;
-        }
-        model.fireBase = true;
-        model.fireBaseId = response;
-        model.save()
-        return true;
-    }
-
-    async createIosApp(object, model) {
-        const response = await this.googleAdmin.createNewIosApp(object.displayName, object.packageName)
-        if (!response) {
-            return false;
-        }
-        model.fireBase = true;
-        model.fireBaseId = response;
-        model.save()
-        return true;
+        return null
     }
 }
 
