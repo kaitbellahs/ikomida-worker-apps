@@ -4,6 +4,7 @@ import {
     RabbitMQ,
     SqlDB,
     GoogleAdmin,
+    AppStoreConnect,
     Logger,
     System
 } from 'ikomida-shared'
@@ -23,6 +24,7 @@ name = name
 class AppsWorker {
 
     googleAdmin
+    appStoreConnect
     amqp
     logger
 
@@ -33,6 +35,7 @@ class AppsWorker {
     async run() {
         try {
             this.googleAdmin = new GoogleAdmin(this.logger)
+            this.appStoreConnect = new AppStoreConnect(this.logger)
             this.amqp = new RabbitMQ(this.logger)
             await this.amqp.listenToMessages(RabbitMQ.APPS_QUEUE, this.processMessages.bind(this))
         } catch (error) {
@@ -55,18 +58,18 @@ class AppsWorker {
                 let total = 0
                 let i = 0
                 do {
-                    let response
-                    if (platform === 'android') {
-                        response = await this.googleAdmin?.createNewAndroidApp(message?.displayName, message?.packageName)
-                    }
-                    if (platform === 'ios') {
-                        response = await this.googleAdmin?.createNewIosApp(message?.displayName, message?.packageName)
-                    }
+                    const response = await this.googleAdmin?.createNewApp(message?.displayName, message?.packageName, platform)
                     i++
                     switch (response?.code) {
                         case 0:
                             model.fireBase = true
                             model.fireBaseId = response?.id
+                            if (platform === 'ios') {
+                                const appStoreConnectResponse = await this.appStoreConnect?.configureApp(message?.packageName)
+                                if (appStoreConnectResponse?.code === 0) {
+                                    model.iOSProfileId = appStoreConnectResponse?.id
+                                }
+                            }
                             await model.save()
                             this.logger.log(` [x] App bundleId: ${model?.bundleId} platfrm: ${platform} foi criado com sucesso`)
                             channel.ack(payload)
@@ -105,13 +108,10 @@ class AppsWorker {
             if (!contractModel) {
                 return false
             }
-
-            const appModel = await contractModel.createApp({
+            return contractModel.createApp({
                 bundleId: object?.packageName,
-                platform: platform,
                 displayName: object?.displayName
             })
-            return appModel
         } catch (error) {
             this.logger.error(error)
         }

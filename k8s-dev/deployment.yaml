@@ -72,3 +72,13 @@ spec:
                 secretKeyRef:
                   name: environment
                   key: PROJID
+            - name: APP_STORE_CONNECT
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: APP_STORE_CONNECT
+            - name: APP_STORE_CONNECT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: environment
+                  key: APP_STORE_CONNECT_KEY
