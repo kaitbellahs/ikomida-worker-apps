@@ -50,7 +50,7 @@ class AppsWorker {
             if (messageObject.method === 'createApp') {
                 const message = messageObject?.object?.message
                 const platform = messageObject?.object?.platform
-                const model = await this.createModel(message, messageObject.object?.contractId, platform)
+                const model = await this.model(message, messageObject.object?.contractId, platform)
                 if (!model) {
                     return false
                 }
@@ -97,20 +97,31 @@ class AppsWorker {
         return false
     }
 
-    async createModel(object, contractId, platform) {
+    async model(object, contractId, platform) {
         try {
             const contractModel = await SqlDB.ContractModel.findOne({
                 where: {
                     id: contractId
+                },
+                include: {
+                    model: SqlDB.AppModel,
+                    required: false,
+                    where: {
+                        platform
+                    }
                 }
             })
 
             if (!contractModel) {
                 return false
             }
+            if (contractModel?.apps?.[0]) {
+                return contractModel?.apps?.[0]
+            }
             return contractModel.createApp({
                 bundleId: object?.packageName,
-                displayName: object?.displayName
+                displayName: object?.displayName,
+                platform
             })
         } catch (error) {
             this.logger.error(error)
