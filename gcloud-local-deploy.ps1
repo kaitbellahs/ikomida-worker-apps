@@ -21,7 +21,7 @@ ThrowOnNativeFailure
 docker push us-central1-docker.pkg.dev/ikomida-prod/docker/apps-worker-image:latest
 ThrowOnNativeFailure
 kubectl -n ikomida-worker delete deploy apps-worker
-$prod = false
+$prod = $false
 if($args.count -gt 1){
     $prod=$args[1]==="prod"
 }
