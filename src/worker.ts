@@ -32,7 +32,7 @@ class AppsWorker {
   async processMessages(message: Message, channel: Channel) {
     try {
       this.logger.log(` [x] ${message.fields?.routingKey}: payload received: '${message.content?.toString('utf8')}'`);
-      const payloadObject = JSON.parse(message.content?.toString('utf8') ?? '{}') as Types.Classes.CAMQPPayload<Types.Classes.CAMQPPayloadObject>;
+      const payloadObject: Types.Classes.CAMQPPayload<Types.Classes.CAMQPPayloadObject> = Types.Classes.CAMQPPayload.fromObject(JSON.parse(message.content?.toString('utf8') ?? '{}'));
       if (payloadObject.method === 'createApp') {
         const object = payloadObject?.object
         const payload: Types.Classes.CApp = Types.Classes.CApp.fromObject(object?.message)
