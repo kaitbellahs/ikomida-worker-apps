@@ -32,10 +32,10 @@ class AppsWorker {
   async processMessages(message: Message, channel: Channel) {
     try {
       this.logger.log(` [x] ${message.fields?.routingKey}: payload received: '${message.content?.toString('utf8')}'`);
-      const payloadObject = JSON.parse(message.content?.toString('utf8') ?? '{}') as Types.Interfaces.IAMQPPayload<Types.Interfaces.IAMQPPayloadObject>;
+      const payloadObject = JSON.parse(message.content?.toString('utf8') ?? '{}') as Types.Classes.CAMQPPayload<Types.Classes.CAMQPPayloadObject>;
       if (payloadObject.method === 'createApp') {
         const object = payloadObject?.object
-        const payload = object?.message as Types.Interfaces.IApp
+        const payload: Types.Classes.CApp = Types.Classes.CApp.fromObject(object?.message)
         const platform = object?.platform;
         const modelResponse = await this.model(payload, object?.contractId, platform);
         if (!modelResponse) {
@@ -85,7 +85,7 @@ class AppsWorker {
     return false;
   }
 
-  async model(object: Types.Interfaces.IApp, contractId?: string, platform?: string) {
+  async model(object: Types.Classes.CApp, contractId?: string, platform?: string) {
     try {
       const contractModel = await DBModels.ContractModel.findOne({
         where: {
