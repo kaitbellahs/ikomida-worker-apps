@@ -81,7 +81,7 @@ class AppsWorker {
             default:
               return false
           }
-        } while (i < 4)
+        } while (i <= 4)
         this.logger.error(
           `nao foi possivel o App bundleId: ${model?.bundleId} platfrm: ${platform} após ${i} tentativas em ${
             (startTime - new Date().getTime()) / 1000
